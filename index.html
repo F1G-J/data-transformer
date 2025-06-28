@@ -29,14 +29,15 @@
 <table id="outputTable">
   <thead>
     <tr>
+      <th>Event ID</th>
+      <th>Equip-ID</th>
+      <th>WUC/LCN</th>
+      <th>Discrepancy</th>
       <th>WCE-SEQ</th>
       <th>PWC</th>
-      <th>EQUIP-ID</th>
-      <th>WUC/LCN</th>
       <th>DATE</th>
       <th>NARR</th>
       <th>PROCESS ID</th>
-      <th>DISCREPANCY</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -54,17 +55,15 @@ function processData() {
   const wceBlocks = [];
   let i = 0;
   let discrepancy = "";
+  let eventId = "";
+  let equipId = "";
+  let wuc = "";
   let headerText = "";
 
   while (i < lines.length) {
     const line = lines[i];
 
-    // Capture the main header section information
-    if (line.startsWith("MAINTENANCE SNAPSHOT INQUIRY") || line.startsWith("TRIC") || line.startsWith("UNIT") || line.startsWith("DMS/RDMS IND")) {
-      headerText += line.trim() + "\n";
-    }
-
-    // Capture Discrepancy Section (multiline)
+    // Capture the main header section information (discrepancy, event ID, equip ID, WUC/LCN)
     if (line.startsWith("DISCREPANCY:")) {
       discrepancy = line.replace(/^DISCREPANCY:\s*/i, "").trim();
       while (lines[i + 1] && !lines[i + 1].startsWith("--------------------------------------------------------------------------------")) {
@@ -73,23 +72,42 @@ function processData() {
       }
     }
 
+    // Capture Event ID, Equip ID, WUC/LCN (grouped together for main info)
+    if (line.startsWith("EVENT-ID")) {
+      eventId = line.replace(/^EVENT-ID\s*/i, "").trim();
+      i++;
+    }
+    if (line.startsWith("EQUIP-ID")) {
+      equipId = line.replace(/^EQUIP-ID\s*/i, "").trim();
+      i++;
+    }
+    if (line.startsWith("WUC/LCN")) {
+      wuc = line.replace(/^WUC\/LCN\s*/i, "").trim();
+      i++;
+    }
+
+    // Capture any other useful header information (optional)
+    if (line.startsWith("MAINTENANCE SNAPSHOT INQUIRY") || line.startsWith("TRIC") || line.startsWith("UNIT") || line.startsWith("DMS/RDMS IND")) {
+      headerText += line.trim() + "\n";
+    }
+
     // Parse WCE blocks
     if (line.trim().startsWith("WCE-SEQ")) {
       const dataLine = lines[i + 1] || "";
       const narrLine = lines[i + 2] || "";
       const processLine = lines[i + 3] || "";
 
-      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/); // Updated regex to reflect new columns
+      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)$/); // Updated regex to reflect new columns
       if (match) {
         const [
-          _, seq, pwc, equip, wuc, date
+          _, seq, pwc, date
         ] = match;
 
         const narr = narrLine.replace(/^NARR:\s*/i, "").trim();
         const procMatch = processLine.match(/-- .*?(\d{3})$/);
         const procId = procMatch ? procMatch[1] : "";
 
-        wceBlocks.push([seq, pwc, equip, wuc, date, narr, procId, discrepancy]);
+        wceBlocks.push([eventId, equipId, wuc, discrepancy, seq, pwc, date, narr, procId]);
       }
       i += 4;
     } else {
