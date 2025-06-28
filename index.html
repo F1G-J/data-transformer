@@ -66,25 +66,22 @@ function processData() {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Main Header Capture (without TRIC and DMS)
     if (line.includes("MAINTENANCE SNAPSHOT") || line.startsWith("EVENT-ID")) {
       headerText += line.trim() + "\n";
     }
 
-    // Capture the data you want above the dashed line
     if (line.match(/^!\$\$/)) {
       const parts = line.trim().split(/\s+/);
-      eventId = parts[0].replace(/!/g, '').trim();
-      equipId = parts[1].replace(/!/g, '').trim();
-      wuc = parts[2].replace(/!/g, '').trim();
-      symbol = parts[3].trim();
-      priority = parts[4].trim();
-      scheduledDate = parts[9].trim();
+      eventId = parts[0]?.replace(/!/g, '').trim() || "";
+      equipId = parts[1]?.replace(/!/g, '').trim() || "";
+      wuc = parts[2]?.replace(/!/g, '').trim() || "";
+      symbol = parts[3]?.trim() || "";
+      priority = parts[5]?.trim() || "";
+      scheduledDate = parts[9]?.trim() || "";
     }
 
     if (line.startsWith("DISCREPANCY:")) {
       discrepancy = line.replace("DISCREPANCY:", "").trim();
-      // Look ahead for multiline discrepancy
       let j = i + 1;
       while (j < lines.length && lines[j].trim() !== "" && !lines[j].includes("---")) {
         discrepancy += " " + lines[j].trim();
@@ -92,14 +89,12 @@ function processData() {
       }
     }
 
-    // WCE Block Parse (Handling the WCE Data)
     if (line.trim().startsWith("WCE-SEQ")) {
       let j = i + 1;
       while (j < lines.length) {
         const dataLine = lines[j] || "";
         const trimmed = dataLine.trim();
 
-        // Stop at next header or empty line
         if (!/^\d{3}/.test(trimmed)) {
           j++;
           continue;
@@ -124,10 +119,15 @@ function processData() {
     }
   }
 
-  // Display Header Information (Event ID, Equip, WUC, etc.)
-  headerInfo.textContent = `Event ID: ${eventId}\nEquip ID: ${equipId}\nWUC: ${wuc}\nSymbol: ${symbol}\nPriority: ${priority}\nScheduled Date: ${scheduledDate}\nDiscrepancy: ${discrepancy}`;
+  headerInfo.textContent =
+    `Event ID: ${eventId}\n` +
+    `Equip ID: ${equipId}\n` +
+    `WUC: ${wuc}\n` +
+    `Symbol: ${symbol}\n` +
+    `Priority: ${priority}\n` +
+    `Scheduled Date: ${scheduledDate}\n` +
+    `Discrepancy: ${discrepancy}`;
 
-  // Display parsed rows
   for (const row of wceBlocks) {
     const tr = document.createElement("tr");
     row.forEach(col => {
