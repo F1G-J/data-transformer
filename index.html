@@ -58,23 +58,28 @@ function processData() {
   let eventId = "";
   let equipId = "";
   let wuc = "";
+  let symbol = "";
+  let priority = "";
+  let scheduledDate = "";
   let headerText = "";
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Main Header Capture
-    if (line.includes("MAINTENANCE SNAPSHOT") || line.startsWith("TRIC") || line.includes("DMS/RDMS")) {
+    // Main Header Capture (without TRIC and DMS)
+    if (line.includes("MAINTENANCE SNAPSHOT") || line.startsWith("EVENT-ID")) {
       headerText += line.trim() + "\n";
     }
 
-    if (line.startsWith("EVENT-ID")) {
-      // Line with column headers - skip
-    } else if (line.match(/^!\$\$/)) {
+    // Capture the data you want above the dashed line
+    if (line.match(/^!\$\$/)) {
       const parts = line.trim().split(/\s+/);
       eventId = parts[0].replace(/!/g, '').trim();
       equipId = parts[1].replace(/!/g, '').trim();
       wuc = parts[2].replace(/!/g, '').trim();
+      symbol = parts[3].trim();
+      priority = parts[4].trim();
+      scheduledDate = parts[9].trim();
     }
 
     if (line.startsWith("DISCREPANCY:")) {
@@ -87,7 +92,7 @@ function processData() {
       }
     }
 
-    // WCE Block Parse
+    // WCE Block Parse (Handling the WCE Data)
     if (line.trim().startsWith("WCE-SEQ")) {
       let j = i + 1;
       while (j < lines.length) {
@@ -119,7 +124,8 @@ function processData() {
     }
   }
 
-  headerInfo.textContent = headerText.trim();
+  // Display Header Information (Event ID, Equip, WUC, etc.)
+  headerInfo.textContent = `Event ID: ${eventId}\nEquip ID: ${equipId}\nWUC: ${wuc}\nSymbol: ${symbol}\nPriority: ${priority}\nScheduled Date: ${scheduledDate}\nDiscrepancy: ${discrepancy}`;
 
   // Display parsed rows
   for (const row of wceBlocks) {
