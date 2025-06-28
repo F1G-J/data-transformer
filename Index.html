@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Legacy Data Cleaner</title>
+  <style>
+    table { width: 100%; border-collapse: collapse; }
+    table, th, td { border: 1px solid black; }
+    th, td { padding: 8px; text-align: left; }
+  </style>
+</head>
+<body>
+  <h1>Legacy Data Cleaner</h1>
+  
+  <textarea id="rawData" rows="10" cols="50" placeholder="Paste your legacy data here"></textarea><br><br>
+  
+  <button onclick="processData()">Clean Data</button>
+  
+  <h3>Cleaned Data</h3>
+  <table id="cleanedDataTable">
+    <thead>
+      <tr><th>Column 1</th><th>Column 2</th><th>Column 3</th></tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <button onclick="downloadCSV()">Download CSV</button>
+
+  <script>
+    function processData() {
+      let rawData = document.getElementById('rawData').value;
+      let rows = rawData.split("\n"); // Split the raw data into rows based on newline characters
+      let cleanedData = [];
+      
+      let i = 0;
+      while (i < rows.length) {
+        let row = rows[i].trim(); // Remove leading/trailing spaces
+        let nextRow = rows[i + 1] ? rows[i + 1].trim() : ""; // Look ahead for the next row
+
+        // If the next row is a subcategory, combine the current row with it
+        if (nextRow && isSubcategory(nextRow)) {
+          row += " " + nextRow; // Combine the two rows
+          i++; // Skip the next row, since we've already handled it
+        }
+
+        // Split the row by spaces and clean up any extra spaces
+        let columns = row.split(/\s+/).filter(col => col.length > 0);
+        
+        // Store the cleaned data (only if the row has enough columns)
+        if (columns.length >= 3) { // Example check to ensure there are enough columns
+          cleanedData.push(columns);
+        }
+
+        i++; // Move to the next row
+      }
+
+      // Display the cleaned data in a table
+      let tableBody = document.getElementById('cleanedDataTable').getElementsByTagName('tbody')[0];
+      tableBody.innerHTML = ''; // Clear existing table data
+      cleanedData.forEach(row => {
+        let newRow = tableBody.insertRow();
+        row.forEach(col => {
+          let cell = newRow.insertCell();
+          cell.textContent = col;
+        });
+      });
+    }
+
+    function isSubcategory(line) {
+      // Basic check to see if the line looks like a subcategory (could be adjusted)
+      // Example: If the line starts with a specific pattern, such as a code or indent
+      return line.startsWith("  "); // Adjust based on actual subcategory patterns
+    }
+
+    function downloadCSV() {
+      let table = document.getElementById("cleanedDataTable");
+      let csvContent = "data:text/csv;charset=utf-8,";
+      
+      // Loop through rows and columns of the table to create CSV data
+      for (let row of table.rows) {
+        let rowData = [];
+        for (let cell of row.cells) {
+          rowData.push(cell.textContent);
+        }
+        csvContent += rowData.join(",") + "\n";
+      }
+
+      // Create a download link for the CSV file
+      let encodedUri = encodeURI(csvContent);
+      let link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "cleaned_data.csv");
+      document.body.appendChild(link); // Required for Firefox
+      link.click(); // Trigger the download
+    }
+  </script>
+</body>
+</html>
