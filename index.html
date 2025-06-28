@@ -29,20 +29,15 @@
 <table id="outputTable">
   <thead>
     <tr>
+      <th>Event ID</th>
+      <th>Equip-ID</th>
+      <th>WUC/LCN</th>
+      <th>Discrepancy</th>
       <th>WCE-SEQ</th>
       <th>PWC</th>
-      <th>EQUIP-ID</th>
-      <th>WUC/LCN</th>
-      <th>J/F</th>
-      <th>SYM</th>
-      <th>R/I</th>
-      <th>SRD</th>
-      <th>IN-SHP</th>
-      <th>WCE-ACTION</th>
       <th>DATE</th>
       <th>NARR</th>
       <th>PROCESS ID</th>
-      <th>DISCREPANCY</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -60,46 +55,62 @@ function processData() {
   const wceBlocks = [];
   let i = 0;
   let discrepancy = "";
+  let eventId = "";
+  let equipId = "";
+  let wuc = "";
   let headerText = "";
 
   while (i < lines.length) {
     const line = lines[i];
 
-    // Capture the main header section information
-    if (line.startsWith("MAINTENANCE SNAPSHOT INQUIRY") || line.startsWith("TRIC") || line.startsWith("UNIT") || line.startsWith("DMS/RDMS IND")) {
-      headerText += line.trim() + "\n";
-    }
-
-    // Capture Discrepancy Section (multiline)
+    // Capture the main header section information (discrepancy, event ID, equip ID, WUC/LCN)
     if (line.startsWith("DISCREPANCY:")) {
       discrepancy = line.replace(/^DISCREPANCY:\s*/i, "").trim();
-      while (lines[i + 1] && !lines[i + 1].startsWith("--------------------------------------------------------------------------------")) {
+      // Capture multiple lines under Discrepancy if applicable
+      while (lines[i + 1] && !lines[i + 1].startsWith("--------------------------------------------------------------------------------") && lines[i + 1].length > 0) {
         discrepancy += " " + lines[i + 1].trim();
         i++;
       }
     }
 
-    // Parse WCE blocks
+    // Capture Event ID, Equip ID, WUC/LCN (grouped together for main info)
+    if (line.startsWith("EVENT-ID")) {
+      eventId = line.replace(/^EVENT-ID\s*/i, "").trim();
+    }
+    if (line.startsWith("EQUIP-ID")) {
+      equipId = line.replace(/^EQUIP-ID\s*/i, "").trim();
+    }
+    if (line.startsWith("WUC/LCN")) {
+      wuc = line.replace(/^WUC\/LCN\s*/i, "").trim();
+    }
+
+    // Capture any other useful header information (optional)
+    if (line.startsWith("MAINTENANCE SNAPSHOT INQUIRY") || line.startsWith("TRIC") || line.startsWith("UNIT") || line.startsWith("DMS/RDMS IND")) {
+      headerText += line.trim() + "\n";
+    }
+
+    // Parse WCE blocks (after header data)
     if (line.trim().startsWith("WCE-SEQ")) {
       const dataLine = lines[i + 1] || "";
       const narrLine = lines[i + 2] || "";
       const processLine = lines[i + 3] || "";
 
-      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S)\s+(\S)\s+(\S*)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/);
+      // Adjust the regex to ensure we're capturing the correct WCE sequence data
+      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)$/); // Capture WCE-SEQ, PWC, WUC/LCN, DATE
       if (match) {
         const [
-          _, seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date
+          _, seq, pwc, wuc, date
         ] = match;
 
         const narr = narrLine.replace(/^NARR:\s*/i, "").trim();
         const procMatch = processLine.match(/-- .*?(\d{3})$/);
         const procId = procMatch ? procMatch[1] : "";
 
-        wceBlocks.push([seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date, narr, procId, discrepancy]);
+        wceBlocks.push([eventId, equipId, wuc, discrepancy, seq, pwc, date, narr, procId]);
       }
-      i += 4;
+      i += 4; // Skip 4 lines to process the next block of data
     } else {
-      i++;
+      i++; // Move to the next line if not part of WCE block
     }
   }
 
