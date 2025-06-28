@@ -33,6 +33,12 @@
       <th>PWC</th>
       <th>EQUIP-ID</th>
       <th>WUC/LCN</th>
+      <th>J/F</th>
+      <th>SYM</th>
+      <th>R/I</th>
+      <th>SRD</th>
+      <th>IN-SHP</th>
+      <th>WCE-ACTION</th>
       <th>DATE</th>
       <th>NARR</th>
       <th>PROCESS ID</th>
@@ -79,17 +85,17 @@ function processData() {
       const narrLine = lines[i + 2] || "";
       const processLine = lines[i + 3] || "";
 
-      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/); // Updated regex to reflect new columns
+      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S)\s+(\S)\s+(\S*)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/);
       if (match) {
         const [
-          _, seq, pwc, equip, wuc, date
+          _, seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date
         ] = match;
 
         const narr = narrLine.replace(/^NARR:\s*/i, "").trim();
         const procMatch = processLine.match(/-- .*?(\d{3})$/);
         const procId = procMatch ? procMatch[1] : "";
 
-        wceBlocks.push([seq, pwc, equip, wuc, date, narr, procId, discrepancy]);
+        wceBlocks.push([seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date, narr, procId, discrepancy]);
       }
       i += 4;
     } else {
