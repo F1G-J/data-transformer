@@ -72,8 +72,8 @@ function processData() {
       equipId = parts[1].replace(/!/g, '').trim(); // Equip ID
       wuc = parts[2].replace(/!/g, '').trim(); // WUC
       symbol = parts[3]?.trim() || ""; // Symbol
-      priority = parts[4]?.trim() || ""; // Priority
-      scheduledDate = parts[8]?.trim() || ""; // Scheduled Date
+      priority = parts[4]?.trim() || ""; // Priority (adjusted to fetch both characters)
+      scheduledDate = parts[8]?.trim() || ""; // Scheduled Date (adjusted index)
     }
 
     // Parse discrepancy and continuation
@@ -94,11 +94,13 @@ function processData() {
         const narrLine = lines[j + 1]?.trim() || "";
         const procLine = lines[j + 2]?.trim() || "";
 
-        const seq = dataLine.slice(2, 7).trim(); // Adjusted for WCE Sequence
-        const pwc = dataLine.slice(8, 15).trim(); // Adjusted for PWC
-        const equip = dataLine.slice(15, 25).trim();
-        const wucCode = dataLine.slice(25, 42).trim();
-        const date = dataLine.slice(75).trim();
+        // Adjusted for WCE Sequence (corrected off-by-two issue)
+        const seq = dataLine.slice(7, 12).trim(); 
+        // Adjusted for PWC (corrected off-by-three issue)
+        const pwc = dataLine.slice(13, 18).trim();
+        const equip = dataLine.slice(19, 30).trim();
+        const wucCode = dataLine.slice(31, 45).trim();
+        const date = dataLine.slice(75).trim(); 
 
         const narr = narrLine.startsWith("NARR:") ? narrLine.replace(/^NARR:\s*/i, "") : "";
         const procMatch = procLine.match(/-- .*?(\d{3})$/);
