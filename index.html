@@ -62,17 +62,20 @@ function processData() {
   let priority = "";
   let scheduledDate = "";
 
+  // Iterate through all lines
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Parse main data line
-    if (/^\$\$\$\$/.test(line.trim())) {
-      eventId = line.slice(0, 11).trim();
-      equipId = line.slice(14, 20).trim();
-      wuc = line.slice(22, 35).trim();
-      symbol = line.slice(46, 47).trim();
-      priority = line.slice(51, 53).trim();
-      scheduledDate = line.slice(66).trim();
+    // Parse main data line (Event ID, Equip ID, WUC, etc.)
+    if (line.match(/^!*\$\$\$\$/)) {
+      const parts = line.trim().split(/\s+/);
+
+      eventId = parts[0].replace(/!/g, '').trim();
+      equipId = parts[1].replace(/!/g, '').trim();
+      wuc = parts[2].replace(/!/g, '').trim();
+      symbol = parts[3]?.trim() || "";
+      priority = parts[4]?.trim() || "";
+      scheduledDate = parts[8]?.trim() || "";
     }
 
     // Parse discrepancy and continuation
@@ -93,10 +96,10 @@ function processData() {
         const narrLine = lines[j + 1]?.trim() || "";
         const procLine = lines[j + 2]?.trim() || "";
 
-        const seq = dataLine.slice(0, 5).trim();
-        const pwc = dataLine.slice(6, 13).trim();
-        const equip = dataLine.slice(14, 22).trim();
-        const wucCode = dataLine.slice(23, 40).trim();
+        const seq = dataLine.slice(2, 7).trim();
+        const pwc = dataLine.slice(8, 15).trim();
+        const equip = dataLine.slice(15, 25).trim();
+        const wucCode = dataLine.slice(25, 42).trim();
         const date = dataLine.slice(75).trim();
 
         const narr = narrLine.startsWith("NARR:") ? narrLine.replace(/^NARR:\s*/i, "") : "";
