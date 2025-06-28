@@ -37,6 +37,7 @@
       <th>DATE</th>
       <th>NARR</th>
       <th>PROCESS ID</th>
+      <th>DISCREPANCY</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -51,8 +52,21 @@ function processData() {
 
   const wceBlocks = [];
   let i = 0;
+  let discrepancy = "";
+
   while (i < lines.length) {
     const line = lines[i];
+
+    // Capture Discrepancy Section (multiline)
+    if (line.startsWith("DISCREPANCY:")) {
+      discrepancy = line.replace(/^DISCREPANCY:\s*/i, "").trim();
+      while (lines[i + 1] && !lines[i + 1].startsWith("--------------------------------------------------------------------------------")) {
+        discrepancy += " " + lines[i + 1].trim();
+        i++;
+      }
+    }
+
+    // Parse WCE blocks
     if (line.trim().startsWith("WCE-SEQ")) {
       const dataLine = lines[i + 1] || "";
       const narrLine = lines[i + 2] || "";
@@ -68,7 +82,7 @@ function processData() {
         const procMatch = processLine.match(/-- .*?(\d{3})$/);
         const procId = procMatch ? procMatch[1] : "";
 
-        wceBlocks.push([seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date, narr, procId]);
+        wceBlocks.push([seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date, narr, procId, discrepancy]);
       }
       i += 4;
     } else {
@@ -79,7 +93,7 @@ function processData() {
   // Render to table
   for (const row of wceBlocks) {
     const tr = document.createElement("tr");
-    row.forEach(col => {
+    row.forEach((col, idx) => {
       const td = document.createElement("td");
       td.textContent = col;
       tr.appendChild(td);
