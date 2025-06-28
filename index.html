@@ -21,6 +21,11 @@
 <button onclick="processData()">Process</button>
 <button onclick="downloadCSV()">Download CSV</button>
 
+<div id="headerSection">
+  <h3>Main Information</h3>
+  <pre id="headerInfo"></pre>
+</div>
+
 <table id="outputTable">
   <thead>
     <tr>
@@ -48,14 +53,22 @@ function processData() {
   const input = document.getElementById("rawData").value;
   const lines = input.split("\n");
   const tbody = document.querySelector("#outputTable tbody");
+  const headerInfo = document.getElementById("headerInfo");
   tbody.innerHTML = "";
+  headerInfo.textContent = "";
 
   const wceBlocks = [];
   let i = 0;
   let discrepancy = "";
+  let headerText = "";
 
   while (i < lines.length) {
     const line = lines[i];
+
+    // Capture the main header section information
+    if (line.startsWith("MAINTENANCE SNAPSHOT INQUIRY") || line.startsWith("TRIC") || line.startsWith("UNIT") || line.startsWith("DMS/RDMS IND")) {
+      headerText += line.trim() + "\n";
+    }
 
     // Capture Discrepancy Section (multiline)
     if (line.startsWith("DISCREPANCY:")) {
@@ -90,7 +103,10 @@ function processData() {
     }
   }
 
-  // Render to table
+  // Display header info
+  headerInfo.textContent = headerText;
+
+  // Render WCE data to table
   for (const row of wceBlocks) {
     const tr = document.createElement("tr");
     row.forEach((col, idx) => {
