@@ -1,41 +1,54 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Maintenance Data Parser</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Data Transformer</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      margin: 2em;
-    }
-    textarea {
-      width: 100%;
-      height: 300px;
-      margin-bottom: 1em;
+      margin: 20px;
     }
     table {
       width: 100%;
       border-collapse: collapse;
-      margin-top: 1em;
+      margin-top: 10px;
     }
     th, td {
       border: 1px solid #ccc;
-      padding: 0.5em;
+      padding: 8px;
       text-align: left;
     }
     th {
       background-color: #f4f4f4;
     }
+    textarea {
+      width: 100%;
+      height: 200px;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 20px;
+    }
   </style>
 </head>
 <body>
   <h1>Maintenance Data Parser</h1>
-  <textarea id="rawData" placeholder="Paste legacy export text here..."></textarea>
+  <textarea id="inputData" placeholder="Paste your data here..."></textarea>
   <button onclick="processData()">Parse Data</button>
 
   <h2>Main Information</h2>
-  <div id="mainInfo"></div>
+  <table id="mainInfoTable">
+    <tbody>
+      <tr><td><strong>Event ID</strong></td><td id="eventId"></td></tr>
+      <tr><td><strong>Equipment ID</strong></td><td id="equipId"></td></tr>
+      <tr><td><strong>WUC</strong></td><td id="wuc"></td></tr>
+      <tr><td><strong>Symbol</strong></td><td id="symbol"></td></tr>
+      <tr><td><strong>Priority</strong></td><td id="priority"></td></tr>
+      <tr><td><strong>Scheduled</strong></td><td id="scheduled"></td></tr>
+      <tr><td><strong>Discrepancy</strong></td><td id="discrepancy"></td></tr>
+    </tbody>
+  </table>
 
   <h2>Work Center Events</h2>
   <table id="wceTable">
@@ -55,75 +68,81 @@
 
   <script>
     function processData() {
-      const raw = document.getElementById('rawData').value;
-      const lines = raw.split("\n");
+      const input = document.getElementById("inputData").value;
+      const lines = input.split(/\r?\n/);
+      let mainInfoParsed = false;
+      let wceMode = false;
+      const wceRows = [];
+      let discrepancy = "";
 
-      let main = {
-        eventId: '',
-        equipId: '',
-        wuc: '',
-        symbol: '',
-        priority: '',
-        scheduled: '',
-        discrepancy: ''
+      let mainInfo = {
+        eventId: "",
+        equipId: "",
+        wuc: "",
+        symbol: "",
+        priority: "",
+        scheduled: "",
+        discrepancy: ""
       };
 
-      let wceList = [];
-      let readingDiscrepancy = false;
-      let readingWCE = false;
-      let currentWCE = null;
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
 
-      for (let line of lines) {
-        const trimmed = line.trim();
+        if (!mainInfoParsed && line.includes("EVENT-ID")) {
+          const dataLine = lines[i + 1] || "";
+          mainInfo.eventId = dataLine.substring(0, 11).trim();
+          mainInfo.equipId = dataLine.substring(13, 19).trim();
+          mainInfo.wuc = dataLine.substring(21, 28).trim();
+          mainInfo.symbol = dataLine.substring(44, 45).trim();
+          mainInfo.priority = dataLine.substring(48, 50).trim();
+          mainInfo.scheduled = dataLine.substring(66).trim();
+          mainInfoParsed = true;
+        }
 
-        if (line.includes("EVENT-ID") && lines.indexOf(line) + 1 < lines.length) {
-          const dataLine = lines[lines.indexOf(line) + 1];
-          main.eventId = dataLine.substring(0, 11).trim();
-          main.equipId = dataLine.substring(12, 20).trim();
-          main.wuc = dataLine.substring(21, 36).trim();
-          main.symbol = dataLine.substring(47, 49).trim();
-          main.priority = dataLine.substring(52, 54).trim();
-          main.scheduled = dataLine.substring(66).trim();
-        } else if (trimmed.startsWith("DISCREPANCY:")) {
-          main.discrepancy = trimmed.replace("DISCREPANCY:", "").trim();
-          readingDiscrepancy = true;
-        } else if (readingDiscrepancy && trimmed !== "" && !trimmed.startsWith("---")) {
-          main.discrepancy += ' ' + trimmed;
-        } else if (trimmed.includes("WCE-SEQ")) {
-          readingWCE = true;
-        } else if (readingWCE && /^\s*\d{3}/.test(line)) {
-          currentWCE = {
-            seq: line.substring(0, 5).trim(),
-            pwc: line.substring(6, 13).trim(),
-            equipId: line.substring(14, 23).trim(),
-            wuc: line.substring(24, 39).trim(),
-            symbol: line.substring(48, 49).trim(),
-            scheduled: line.substring(70).trim(),
-            description: ''
+        if (line.startsWith("DISCREPANCY:")) {
+          discrepancy = line.replace("DISCREPANCY:", "").trim();
+          const nextLine = lines[i + 1]?.trim();
+          if (nextLine) discrepancy += " " + nextLine;
+          mainInfo.discrepancy = discrepancy;
+        }
+
+        if (line.includes("WCE-SEQ") && lines[i + 1]) {
+          wceMode = true;
+          continue;
+        }
+
+        if (wceMode && line.trim().startsWith("")) {
+          const seqLine = line;
+          const narrLine = lines[i + 1]?.trim() || "";
+
+          const wce = {
+            seq: seqLine.substring(2, 7).trim(),
+            pwc: seqLine.substring(8, 14).trim(),
+            equipId: seqLine.substring(15, 22).trim(),
+            wuc: seqLine.substring(24, 31).trim(),
+            symbol: seqLine.substring(42, 43).trim(),
+            scheduled: seqLine.substring(66).trim(),
+            description: narrLine.startsWith("NARR:") ? narrLine.replace("NARR:", "").trim() : ""
           };
-          wceList.push(currentWCE);
-        } else if (readingWCE && trimmed.startsWith("NARR:")) {
-          if (currentWCE) currentWCE.description = trimmed.replace("NARR:", "").trim();
+
+          wceRows.push(wce);
         }
       }
 
-      // Display Main Info
-      const mainDiv = document.getElementById('mainInfo');
-      mainDiv.innerHTML = `
-        <p><strong>Event ID:</strong> ${main.eventId}</p>
-        <p><strong>Equipment ID:</strong> ${main.equipId}</p>
-        <p><strong>WUC:</strong> ${main.wuc}</p>
-        <p><strong>Symbol:</strong> ${main.symbol}</p>
-        <p><strong>Priority:</strong> ${main.priority}</p>
-        <p><strong>Scheduled:</strong> ${main.scheduled}</p>
-        <p><strong>Discrepancy:</strong> ${main.discrepancy}</p>
-      `;
+      // Populate Main Info Table
+      document.getElementById("eventId").textContent = mainInfo.eventId;
+      document.getElementById("equipId").textContent = mainInfo.equipId;
+      document.getElementById("wuc").textContent = mainInfo.wuc;
+      document.getElementById("symbol").textContent = mainInfo.symbol;
+      document.getElementById("priority").textContent = mainInfo.priority;
+      document.getElementById("scheduled").textContent = mainInfo.scheduled;
+      document.getElementById("discrepancy").textContent = mainInfo.discrepancy;
 
-      // Display WCE Table
-      const tbody = document.querySelector('#wceTable tbody');
-      tbody.innerHTML = '';
-      wceList.forEach(wce => {
-        const row = document.createElement('tr');
+      // Populate WCE Table
+      const tbody = document.querySelector("#wceTable tbody");
+      tbody.innerHTML = "";
+      wceRows.forEach(wce => {
+        const row = document.createElement("tr");
         row.innerHTML = `
           <td>${wce.seq}</td>
           <td>${wce.pwc}</td>
