@@ -3,21 +3,22 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Legacy Data Parser</title>
+  <title>Legacy Data Transformer</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; }
-    textarea { width: 100%; height: 200px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 6px; font-size: 14px; }
+    textarea { width: 100%; height: 200px; margin-bottom: 10px; font-family: monospace; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }
     th { background-color: #f2f2f2; }
-    button { margin-top: 10px; padding: 10px 15px; font-size: 16px; }
+    button { padding: 10px 16px; font-size: 15px; margin-right: 10px; }
+    pre { background: #f9f9f9; padding: 10px; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
 
-<h2>Legacy Data Parser (WCE Extractor)</h2>
-<p>Paste your exported text below:</p>
-<textarea id="rawData" placeholder="Paste data here..."></textarea><br/>
+<h2>Legacy Data Transformer</h2>
+<p>Paste your exported legacy data below (from enhanced or legacy screen):</p>
+<textarea id="rawData" placeholder="Paste legacy export here..."></textarea><br/>
 <button onclick="processData()">Process</button>
 <button onclick="downloadCSV()">Download CSV</button>
 
@@ -30,14 +31,14 @@
   <thead>
     <tr>
       <th>Event ID</th>
-      <th>Equip-ID</th>
-      <th>WUC/LCN</th>
+      <th>Equip ID</th>
+      <th>WUC</th>
       <th>Discrepancy</th>
-      <th>WCE-SEQ</th>
+      <th>WCE Sequence</th>
       <th>PWC</th>
-      <th>DATE</th>
+      <th>Date</th>
       <th>NARR</th>
-      <th>PROCESS ID</th>
+      <th>Process ID</th>
     </tr>
   </thead>
   <tbody></tbody>
@@ -53,83 +54,77 @@ function processData() {
   headerInfo.textContent = "";
 
   const wceBlocks = [];
-  let i = 0;
   let discrepancy = "";
   let eventId = "";
   let equipId = "";
   let wuc = "";
   let headerText = "";
 
-  while (i < lines.length) {
+  for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Capture the main header section information (discrepancy, event ID, equip ID, WUC/LCN)
-    if (line.startsWith("DISCREPANCY:")) {
-      discrepancy = line.replace(/^DISCREPANCY:\s*/i, "").trim();
-      // Capture multiple lines under Discrepancy if applicable
-      while (lines[i + 1] && !lines[i + 1].startsWith("--------------------------------------------------------------------------------") && lines[i + 1].length > 0) {
-        discrepancy += " " + lines[i + 1].trim();
-        i++;
-      }
-    }
-
-    // Capture Event ID, Equip ID, WUC/LCN (grouped together for main info)
-    if (line.startsWith("EVENT-ID")) {
-      eventId = line.replace(/^EVENT-ID\s*/i, "").trim();
-    }
-    if (line.startsWith("EQUIP-ID")) {
-      equipId = line.replace(/^EQUIP-ID\s*/i, "").trim();
-    }
-    if (line.startsWith("WUC/LCN")) {
-      wuc = line.replace(/^WUC\/LCN\s*/i, "").trim();
-    }
-
-    // Capture any other useful header information (optional)
-    if (line.startsWith("MAINTENANCE SNAPSHOT INQUIRY") || line.startsWith("TRIC") || line.startsWith("UNIT") || line.startsWith("DMS/RDMS IND")) {
+    // Main Header Capture
+    if (line.includes("MAINTENANCE SNAPSHOT") || line.startsWith("TRIC") || line.includes("DMS/RDMS")) {
       headerText += line.trim() + "\n";
     }
 
-    // Debugging: Print out where we are in the data
-    console.log(`Processing line: ${i + 1}, Content: ${line}`);
+    if (line.startsWith("EVENT-ID")) {
+      // Line with column headers - skip
+    } else if (line.match(/^!\$\$/)) {
+      const parts = line.trim().split(/\s+/);
+      eventId = parts[0].replace(/!/g, '').trim();
+      equipId = parts[1].replace(/!/g, '').trim();
+      wuc = parts[2].replace(/!/g, '').trim();
+    }
 
-    // Parse WCE blocks (after header data)
+    if (line.startsWith("DISCREPANCY:")) {
+      discrepancy = line.replace("DISCREPANCY:", "").trim();
+      // Look ahead for multiline discrepancy
+      let j = i + 1;
+      while (j < lines.length && lines[j].trim() !== "" && !lines[j].includes("---")) {
+        discrepancy += " " + lines[j].trim();
+        j++;
+      }
+    }
+
+    // WCE Block Parse
     if (line.trim().startsWith("WCE-SEQ")) {
-      const dataLine = lines[i + 1] || "";
-      const narrLine = lines[i + 2] || "";
-      const processLine = lines[i + 3] || "";
+      let j = i + 1;
+      while (j < lines.length) {
+        const dataLine = lines[j] || "";
+        const trimmed = dataLine.trim();
 
-      console.log(`Found WCE block: ${dataLine}`); // Debugging WCE block start
+        // Stop at next header or empty line
+        if (!/^\d{3}/.test(trimmed)) {
+          j++;
+          continue;
+        }
 
-      // Adjust the regex to ensure we're capturing the correct WCE sequence data
-      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)$/); // Capture WCE-SEQ, PWC, WUC/LCN, DATE
-      if (match) {
-        const [
-          _, seq, pwc, date
-        ] = match;
+        const narrLine = lines[j + 1] || "";
+        const processLine = lines[j + 2] || "";
 
-        console.log(`Matched WCE data: seq=${seq}, pwc=${pwc}, date=${date}`); // Debugging matched WCE data
+        const seq = dataLine.slice(2, 7).trim();
+        const pwc = dataLine.slice(8, 15).trim();
+        const equip = dataLine.slice(15, 25).trim();
+        const wucCode = dataLine.slice(25, 42).trim();
+        const date = dataLine.slice(75).trim();
 
-        const narr = narrLine.replace(/^NARR:\s*/i, "").trim();
+        const narr = narrLine.startsWith("NARR:") ? narrLine.replace(/^NARR:\s*/i, "").trim() : "";
         const procMatch = processLine.match(/-- .*?(\d{3})$/);
         const procId = procMatch ? procMatch[1] : "";
 
-        wceBlocks.push([eventId, equipId, wuc, discrepancy, seq, pwc, date, narr, procId]);
-      } else {
-        console.log(`No match for WCE data in line: ${dataLine}`); // Debugging unmatched WCE block
+        wceBlocks.push([eventId, equipId || equip, wuc || wucCode, discrepancy, seq, pwc, date, narr, procId]);
+        j += 4;
       }
-      i += 4; // Skip 4 lines to process the next block of data
-    } else {
-      i++; // Move to the next line if not part of WCE block
     }
   }
 
-  // Display header info
-  headerInfo.textContent = headerText;
+  headerInfo.textContent = headerText.trim();
 
-  // Render WCE data to table
+  // Display parsed rows
   for (const row of wceBlocks) {
     const tr = document.createElement("tr");
-    row.forEach((col, idx) => {
+    row.forEach(col => {
       const td = document.createElement("td");
       td.textContent = col;
       tr.appendChild(td);
