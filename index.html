@@ -1,119 +1,170 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Data Transformer</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    textarea { width: 100%; height: 300px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-    th { background-color: #f2f2f2; }
-    h2 { margin-top: 40px; }
-  </style>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Data Transformer</title>
+<style>
+  body { font-family: Arial, sans-serif; margin: 20px; }
+  textarea { width: 100%; height: 150px; font-family: monospace; }
+  table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+  th, td { border: 1px solid #ddd; padding: 8px; }
+  th { background-color: #f2f2f2; text-align: left; }
+  h2 { margin-top: 40px; }
+</style>
 </head>
 <body>
-  <h1>Legacy Data Transformer</h1>
-  <textarea id="inputData" placeholder="Paste legacy data here..."></textarea>
-  <button onclick="processData()">Process</button>
+<h1>Data Transformer</h1>
+<p>Paste your raw legacy data below and click Process:</p>
+<textarea id="inputData" placeholder="Paste your data here..."></textarea><br />
+<button onclick="processData()">Process</button>
 
-  <div id="mainInfo"></div>
-  <div id="wceTable"></div>
+<div id="output"></div>
 
-  <script>
-    function processData() {
-      const input = document.getElementById("inputData").value;
-      const lines = input.split(/\r?\n/);
+<script>
+function processData() {
+  const input = document.getElementById('inputData').value;
+  const lines = input.split('\n');
 
-      let mainDataLine = "";
-      let discrepancyLine = "";
-      let extraDiscrepancy = "";
-      let wceLines = [];
-      let inWCEBlock = false;
+  let mainInfo = {
+    eventId: 'Unidentified',
+    equipmentId: 'Unidentified',
+    wuc: 'Unidentified',
+    symbol: '',
+    priority: '',
+    scheduled: '',
+    discrepancy: ''
+  };
 
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-        if (line.includes("EVENT-ID") && i + 1 < lines.length) {
-          mainDataLine = lines[i + 1];
+  let discrepancyLines = [];
+  let readingDiscrepancy = false;
+  let workCenterEvents = [];
+
+  // Parse main info line (line after header lines)
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Look for header line to find main info line after it
+    if (line.includes('EVENT-ID') && line.includes('EQUIP-ID')) {
+      // Next line should be the data line for main info
+      const dataLine = lines[i + 1] || '';
+
+      mainInfo.eventId = dataLine.substring(0, 9).trim();
+      mainInfo.equipmentId = dataLine.substring(10, 17).trim();
+      mainInfo.wuc = dataLine.substring(18, 25).trim();
+      mainInfo.symbol = dataLine.substring(37, 39).trim();
+      mainInfo.priority = dataLine.substring(40, 42).trim();
+      mainInfo.scheduled = dataLine.substring(55, 62).trim();
+
+      // Start reading discrepancy from next line(s)
+      readingDiscrepancy = false;
+      // Discrepancy usually starts with 'DISCREPANCY:'
+      for (let j = i + 2; j < lines.length; j++) {
+        if (lines[j].startsWith('DISCREPANCY:')) {
+          discrepancyLines.push(lines[j].replace('DISCREPANCY:', '').trim());
+          readingDiscrepancy = true;
+        } else if (readingDiscrepancy) {
+          // Continue adding lines to discrepancy until blank or separator
+          if (lines[j].trim() === '' || lines[j].startsWith('---')) break;
+          discrepancyLines.push(lines[j].trim());
         }
-        if (line.startsWith("DISCREPANCY:")) {
-          discrepancyLine = line.replace("DISCREPANCY:", "").trim();
-          if (lines[i + 1] && lines[i + 1].trim()) {
-            extraDiscrepancy = lines[i + 1].trim();
+      }
+      mainInfo.discrepancy = discrepancyLines.join(' ');
+      break;
+    }
+  }
+
+  // Parse Work Center Events (WCE)
+  // We'll look for lines after the "ON-EQUIPMENT WORK CENTER EVENTS" header
+  let wceStartIndex = lines.findIndex(line =>
+    line.includes('ON-EQUIPMENT WORK CENTER EVENTS')
+  );
+
+  if (wceStartIndex !== -1) {
+    // Find the header line for WCE table (e.g., line with "WCE-SEQ PWC EQUIP-ID")
+    let wceHeaderIndex = -1;
+    for (let k = wceStartIndex + 1; k < lines.length; k++) {
+      if (lines[k].includes('WCE-SEQ') && lines[k].includes('PWC')) {
+        wceHeaderIndex = k;
+        break;
+      }
+    }
+
+    if (wceHeaderIndex !== -1) {
+      // Start from line after wceHeaderIndex, parse blocks separated by blank lines or dashes
+      for (let l = wceHeaderIndex + 1; l < lines.length; l++) {
+        let wceLine = lines[l];
+        if (wceLine.trim() === '' || wceLine.startsWith('---')) continue;
+
+        // Parse WCE line
+        // Columns approx:
+        // WCE-SEQ: chars 0-6
+        // PWC: chars 7-13
+        // EQUIP-ID: chars 14-21
+        // WUC: chars 22-29
+        // Symbol: chars 40-41 (1 char)
+        // Scheduled: chars 68-75
+
+        if (/^\s*\d{3}/.test(wceLine)) {
+          let seq = wceLine.substring(0, 6).trim();
+          let pwc = wceLine.substring(7, 13).trim();
+          let equipId = wceLine.substring(14, 21).trim();
+          let wuc = wceLine.substring(22, 29).trim();
+          let symbol = wceLine.substring(40, 41).trim();
+          let scheduled = wceLine.substring(67, 75).trim();
+
+          // The description is on the next line, starts with "NARR:"
+          let desc = '';
+          if (l + 1 < lines.length && lines[l + 1].startsWith('NARR:')) {
+            desc = lines[l + 1].substring(5).trim();
+            l++; // Skip next line since we consumed it as description
           }
-        }
-        if (line.includes("WCE-SEQ")) {
-          inWCEBlock = true;
-        } else if (line.startsWith("--")) {
-          inWCEBlock = false;
-        } else if (inWCEBlock && line.trim().startsWith("0")) {
-          const narr = lines[i + 1] && lines[i + 1].startsWith("NARR:") ?
-            lines[i + 1].replace("NARR:", "").trim() : "";
-          wceLines.push({
-            raw: line,
-            description: narr
+
+          workCenterEvents.push({
+            seq,
+            pwc,
+            equipId,
+            wuc,
+            symbol,
+            scheduled,
+            description: desc
           });
         }
       }
-
-      const eventID = mainDataLine.substring(0, 11).trim();
-      const equipID = mainDataLine.substring(13, 20).trim();
-      const wuc = mainDataLine.substring(22, 28).trim();
-      const sym = mainDataLine.substring(49, 50).trim();
-      const pri = mainDataLine.substring(54, 56).trim();
-      const schedDate = mainDataLine.substring(72).trim();
-
-      document.getElementById("mainInfo").innerHTML = `
-        <h2>Main Information</h2>
-        <p><strong>Event ID:</strong> ${eventID}</p>
-        <p><strong>Equipment ID:</strong> ${equipID}</p>
-        <p><strong>WUC:</strong> ${wuc}</p>
-        <p><strong>Symbol:</strong> ${sym}</p>
-        <p><strong>Priority:</strong> ${pri}</p>
-        <p><strong>Scheduled:</strong> ${schedDate}</p>
-        <p><strong>Discrepancy:</strong> ${discrepancyLine} ${extraDiscrepancy}</p>
-      `;
-
-      let tableHTML = `
-        <h2>Work Center Events</h2>
-        <table>
-          <tr>
-            <th>WCE-SEQ</th>
-            <th>PWC</th>
-            <th>Equip-ID</th>
-            <th>WUC</th>
-            <th>Symbol</th>
-            <th>Scheduled</th>
-            <th>Description</th>
-          </tr>
-      `;
-
-      for (const wce of wceLines) {
-        const line = wce.raw;
-        const seq = line.substring(2, 7).trim();
-        const pwc = line.substring(8, 13).trim();
-        const eID = line.substring(14, 21).trim();
-        const wuc = line.substring(24, 31).trim();
-        const symbol = line.substring(42, 43).trim();
-        const sched = line.substring(69).trim();
-
-        tableHTML += `
-          <tr>
-            <td>${seq}</td>
-            <td>${pwc}</td>
-            <td>${eID}</td>
-            <td>${wuc}</td>
-            <td>${symbol}</td>
-            <td>${sched}</td>
-            <td>${wce.description}</td>
-          </tr>
-        `;
-      }
-
-      tableHTML += `</table>`;
-      document.getElementById("wceTable").innerHTML = tableHTML;
     }
-  </script>
+  }
+
+  // Build output HTML
+  let outputHtml = '<h2>Main Information</h2><table>';
+  outputHtml += `<tr><th>Event ID</th><td>${mainInfo.eventId}</td></tr>`;
+  outputHtml += `<tr><th>Equipment ID</th><td>${mainInfo.equipmentId}</td></tr>`;
+  outputHtml += `<tr><th>WUC</th><td>${mainInfo.wuc}</td></tr>`;
+  outputHtml += `<tr><th>Symbol</th><td>${mainInfo.symbol}</td></tr>`;
+  outputHtml += `<tr><th>Priority</th><td>${mainInfo.priority}</td></tr>`;
+  outputHtml += `<tr><th>Scheduled</th><td>${mainInfo.scheduled}</td></tr>`;
+  outputHtml += `<tr><th>Discrepancy</th><td>${mainInfo.discrepancy}</td></tr>`;
+  outputHtml += '</table>';
+
+  if (workCenterEvents.length > 0) {
+    outputHtml += '<h2>Work Center Events</h2><table><tr><th>WCE-SEQ</th><th>PWC</th><th>Equip-ID</th><th>WUC</th><th>Symbol</th><th>Scheduled</th><th>Description</th></tr>';
+    workCenterEvents.forEach(wce => {
+      outputHtml += `<tr>
+        <td>${wce.seq}</td>
+        <td>${wce.pwc}</td>
+        <td>${wce.equipId}</td>
+        <td>${wce.wuc}</td>
+        <td>${wce.symbol}</td>
+        <td>${wce.scheduled}</td>
+        <td>${wce.description}</td>
+      </tr>`;
+    });
+    outputHtml += '</table>';
+  } else {
+    outputHtml += '<p>No Work Center Events found.</p>';
+  }
+
+  document.getElementById('output').innerHTML = outputHtml;
+}
+</script>
 </body>
 </html>
