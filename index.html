@@ -1,99 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Legacy Data Cleaner</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Legacy Data Parser</title>
   <style>
-    table { width: 100%; border-collapse: collapse; }
-    table, th, td { border: 1px solid black; }
-    th, td { padding: 8px; text-align: left; }
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    textarea { width: 100%; height: 200px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ccc; padding: 6px; font-size: 14px; }
+    th { background-color: #f2f2f2; }
+    button { margin-top: 10px; padding: 10px 15px; font-size: 16px; }
   </style>
 </head>
 <body>
-  <h1>Legacy Data Cleaner</h1>
-  
-  <textarea id="rawData" rows="10" cols="50" placeholder="Paste your legacy data here"></textarea><br><br>
-  
-  <button onclick="processData()">Clean Data</button>
-  
-  <h3>Cleaned Data</h3>
-  <table id="cleanedDataTable">
-    <thead>
-      <tr><th>Column 1</th><th>Column 2</th><th>Column 3</th></tr>
-    </thead>
-    <tbody></tbody>
-  </table>
 
-  <button onclick="downloadCSV()">Download CSV</button>
+<h2>Legacy Data Parser (WCE Extractor)</h2>
+<p>Paste your exported text below:</p>
+<textarea id="rawData" placeholder="Paste data here..."></textarea><br/>
+<button onclick="processData()">Process</button>
+<button onclick="downloadCSV()">Download CSV</button>
 
-  <script>
-    function processData() {
-      let rawData = document.getElementById('rawData').value;
-      let rows = rawData.split("\n"); // Split the raw data into rows based on newline characters
-      let cleanedData = [];
-      
-      let i = 0;
-      while (i < rows.length) {
-        let row = rows[i].trim(); // Remove leading/trailing spaces
-        let nextRow = rows[i + 1] ? rows[i + 1].trim() : ""; // Look ahead for the next row
+<table id="outputTable">
+  <thead>
+    <tr>
+      <th>WCE-SEQ</th>
+      <th>PWC</th>
+      <th>EQUIP-ID</th>
+      <th>WUC/LCN</th>
+      <th>J/F</th>
+      <th>SYM</th>
+      <th>R/I</th>
+      <th>SRD</th>
+      <th>IN-SHP</th>
+      <th>WCE-ACTION</th>
+      <th>DATE</th>
+      <th>NARR</th>
+      <th>PROCESS ID</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
 
-        // If the next row is a subcategory, combine the current row with it
-        if (nextRow && isSubcategory(nextRow)) {
-          row += " " + nextRow; // Combine the two rows
-          i++; // Skip the next row, since we've already handled it
-        }
+<script>
+function processData() {
+  const input = document.getElementById("rawData").value;
+  const lines = input.split("\n");
+  const tbody = document.querySelector("#outputTable tbody");
+  tbody.innerHTML = "";
 
-        // Split the row by spaces and clean up any extra spaces
-        let columns = row.split(/\s+/).filter(col => col.length > 0);
-        
-        // Store the cleaned data (only if the row has enough columns)
-        if (columns.length >= 3) { // Example check to ensure there are enough columns
-          cleanedData.push(columns);
-        }
+  const wceBlocks = [];
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (line.trim().startsWith("WCE-SEQ")) {
+      const dataLine = lines[i + 1] || "";
+      const narrLine = lines[i + 2] || "";
+      const processLine = lines[i + 3] || "";
 
-        i++; // Move to the next row
+      const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S)\s+(\S)\s+(\S*)\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)$/);
+      if (match) {
+        const [
+          _, seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date
+        ] = match;
+
+        const narr = narrLine.replace(/^NARR:\s*/i, "").trim();
+        const procMatch = processLine.match(/-- .*?(\d{3})$/);
+        const procId = procMatch ? procMatch[1] : "";
+
+        wceBlocks.push([seq, pwc, equip, wuc, jf, sym, ri, srd, inshp, action, date, narr, procId]);
       }
-
-      // Display the cleaned data in a table
-      let tableBody = document.getElementById('cleanedDataTable').getElementsByTagName('tbody')[0];
-      tableBody.innerHTML = ''; // Clear existing table data
-      cleanedData.forEach(row => {
-        let newRow = tableBody.insertRow();
-        row.forEach(col => {
-          let cell = newRow.insertCell();
-          cell.textContent = col;
-        });
-      });
+      i += 4;
+    } else {
+      i++;
     }
+  }
 
-    function isSubcategory(line) {
-      // Basic check to see if the line looks like a subcategory (could be adjusted)
-      // Example: If the line starts with a specific pattern, such as a code or indent
-      return line.startsWith("  "); // Adjust based on actual subcategory patterns
-    }
+  // Render to table
+  for (const row of wceBlocks) {
+    const tr = document.createElement("tr");
+    row.forEach(col => {
+      const td = document.createElement("td");
+      td.textContent = col;
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+}
 
-    function downloadCSV() {
-      let table = document.getElementById("cleanedDataTable");
-      let csvContent = "data:text/csv;charset=utf-8,";
-      
-      // Loop through rows and columns of the table to create CSV data
-      for (let row of table.rows) {
-        let rowData = [];
-        for (let cell of row.cells) {
-          rowData.push(cell.textContent);
-        }
-        csvContent += rowData.join(",") + "\n";
-      }
+function downloadCSV() {
+  const rows = Array.from(document.querySelectorAll("#outputTable tr"));
+  const csv = rows.map(row =>
+    Array.from(row.children).map(cell =>
+      `"${cell.textContent.replace(/"/g, '""')}"`
+    ).join(",")
+  ).join("\n");
 
-      // Create a download link for the CSV file
-      let encodedUri = encodeURI(csvContent);
-      let link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "cleaned_data.csv");
-      document.body.appendChild(link); // Required for Firefox
-      link.click(); // Trigger the download
-    }
-  </script>
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "parsed_data.csv";
+  a.click();
+}
+</script>
+
 </body>
 </html>
