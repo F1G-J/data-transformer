@@ -89,24 +89,33 @@ function processData() {
       headerText += line.trim() + "\n";
     }
 
+    // Debugging: Print out where we are in the data
+    console.log(`Processing line: ${i + 1}, Content: ${line}`);
+
     // Parse WCE blocks (after header data)
     if (line.trim().startsWith("WCE-SEQ")) {
       const dataLine = lines[i + 1] || "";
       const narrLine = lines[i + 2] || "";
       const processLine = lines[i + 3] || "";
 
+      console.log(`Found WCE block: ${dataLine}`); // Debugging WCE block start
+
       // Adjust the regex to ensure we're capturing the correct WCE sequence data
       const match = dataLine.match(/^ *(\d+)\s+(\S+)\s+(\S+)\s+(\S+)$/); // Capture WCE-SEQ, PWC, WUC/LCN, DATE
       if (match) {
         const [
-          _, seq, pwc, wuc, date
+          _, seq, pwc, date
         ] = match;
+
+        console.log(`Matched WCE data: seq=${seq}, pwc=${pwc}, date=${date}`); // Debugging matched WCE data
 
         const narr = narrLine.replace(/^NARR:\s*/i, "").trim();
         const procMatch = processLine.match(/-- .*?(\d{3})$/);
         const procId = procMatch ? procMatch[1] : "";
 
         wceBlocks.push([eventId, equipId, wuc, discrepancy, seq, pwc, date, narr, procId]);
+      } else {
+        console.log(`No match for WCE data in line: ${dataLine}`); // Debugging unmatched WCE block
       }
       i += 4; // Skip 4 lines to process the next block of data
     } else {
