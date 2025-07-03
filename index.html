@@ -71,7 +71,7 @@ function processData() {
     ["Event ID", eventID],
     ["Equipment ID", equipID],
     ["WUC", wuc],
-    ["Symbol", symbol],
+    ["Sym", sym],
     ["Priority", priority],
     ["Scheduled", scheduled],
     ["Discrepancy", discrepancy]
@@ -90,9 +90,9 @@ function processData() {
 
       const wceSeq     = wceLine.slice(2, 7).trim();   // '001'
       const pwc        = wceLine.slice(8, 15).trim();  // '$$P$$'
-      const equipId    = wceLine.slice(16, 25).trim(); // '$EID$'
-      const wuc        = wceLine.slice(26, 37).trim(); // '$WUC$'
-      const symbol     = wceLine.slice(44, 45).trim(); // '@'
+      const equipId    = wceLine.slice(14, 23).trim(); // '$EID$'
+      const wuc        = wceLine.slice(24, 35).trim(); // '$WUC$'
+      const sym     = wceLine.slice(44, 45).trim(); // '@'
       const scheduled  = wceLine.slice(70).trim();     // '30JUN25'
 
       const description = descLine.includes("NARR:") ? descLine.replace("NARR:", "").trim() : "";
