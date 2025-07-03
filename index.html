@@ -53,7 +53,7 @@ function processData() {
 
   const eventID = valuesLine.slice(0, 11).trim();
   const equipID = valuesLine.slice(11, 19).trim();
-  const wuc = valuesLine.slice(20, 30).trim();
+  const wuc = valuesLine.slice(19, 30).trim();
   const sym = valuesLine.slice(46, 47).trim();
   const priority = valuesLine.slice(50, 52).trim();
   const scheduled = valuesLine.slice(63).trim();
@@ -91,7 +91,7 @@ function processData() {
       const wceSeq     = wceLine.slice(2, 7).trim();   // '001'
       const pwc        = wceLine.slice(8, 15).trim();  // '$$P$$'
       const equipId    = wceLine.slice(14, 23).trim(); // '$EID$'
-      const wuc        = wceLine.slice(24, 35).trim(); // '$WUC$'
+      const wuc        = wceLine.slice(23, 35).trim(); // '$WUC$'
       const sym     = wceLine.slice(44, 45).trim(); // '@'
       const scheduled  = wceLine.slice(70).trim();     // '30JUN25'
 
