@@ -84,11 +84,11 @@ function processData() {
 
   // WCE Parsing
   for (let i = 0; i < lines.length; i++) {
-    if (/^\d{3}\s{3,}/.test(lines[i])) {
+    if (/^\s*\d{3}\s{2,}/.test(lines[i])) {
       const wceLine = lines[i];
       const descLine = lines[i + 1] || "";
 
-      const wceSeq = wceLine.slice(0, 5).trim();
+      const wce = wceLine.slice(0, 5).trim();
       const pwc = wceLine.slice(6, 13).trim();
       const equipId = wceLine.slice(14, 23).trim();
       const wuc = wceLine.slice(24, 35).trim();
