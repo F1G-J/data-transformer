@@ -88,12 +88,13 @@ function processData() {
       const wceLine = lines[i];
       const descLine = lines[i + 1] || "";
 
-      const wce = wceLine.slice(0, 5).trim();
-      const pwc = wceLine.slice(6, 13).trim();
-      const equipId = wceLine.slice(14, 23).trim();
-      const wuc = wceLine.slice(24, 35).trim();
-      const symbol = wceLine.slice(42, 43).trim();
-      const scheduled = wceLine.slice(65).trim();
+      const wceSeq     = wceLine.slice(2, 7).trim();   // '001'
+      const pwc        = wceLine.slice(8, 15).trim();  // '$$P$$'
+      const equipId    = wceLine.slice(16, 25).trim(); // '$EID$'
+      const wuc        = wceLine.slice(26, 37).trim(); // '$WUC$'
+      const symbol     = wceLine.slice(44, 45).trim(); // '@'
+      const scheduled  = wceLine.slice(70).trim();     // '30JUN25'
+
       const description = descLine.includes("NARR:") ? descLine.replace("NARR:", "").trim() : "";
 
       const row = document.createElement("tr");
