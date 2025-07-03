@@ -31,7 +31,7 @@
         <th>PWC</th>
         <th>Equip-ID</th>
         <th>WUC</th>
-        <th>Symbol</th>
+        <th>Sym</th>
         <th>Scheduled</th>
         <th>Description</th>
       </tr>
@@ -54,7 +54,7 @@ function processData() {
   const eventID = valuesLine.slice(0, 11).trim();
   const equipID = valuesLine.slice(11, 19).trim();
   const wuc = valuesLine.slice(20, 30).trim();
-  const symbol = valuesLine.slice(46, 47).trim();
+  const sym = valuesLine.slice(46, 47).trim();
   const priority = valuesLine.slice(50, 52).trim();
   const scheduled = valuesLine.slice(63).trim();
 
@@ -103,7 +103,7 @@ function processData() {
         <td>${pwc}</td>
         <td>${equipId}</td>
         <td>${wuc}</td>
-        <td>${symbol}</td>
+        <td>${sym}</td>
         <td>${scheduled}</td>
         <td>${description}</td>
       `;
